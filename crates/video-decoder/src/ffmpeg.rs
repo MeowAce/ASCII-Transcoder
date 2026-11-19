@@ -371,6 +371,37 @@ mod tests {
     }
 
     #[test]
+    fn parses_raw_pts_without_confusing_pts_time() {
+        let line = "[Parsed_showinfo_0 @ 0x55] n:   3 pts:    3072 pts_time:0.3 \
+                    duration:  512 duration_time:0.05";
+        assert_eq!(parse_showinfo_raw_pts(line), Some(3072));
+    }
+
+    #[test]
+    fn parses_negative_raw_pts() {
+        assert_eq!(
+            parse_showinfo_raw_pts(" n:0 pts:  -512 pts_time:-0.05"),
+            Some(-512)
+        );
+    }
+
+    #[test]
+    fn timing_combines_raw_pts_and_microseconds() {
+        let line = "n:3 pts: 3072 pts_time:0.3 duration:512";
+        let timing = parse_showinfo_timing(line).unwrap();
+
+        assert_eq!(timing.pts, 3072);
+        assert_eq!(timing.timestamp_us, 300_000);
+    }
+
+    #[test]
+    fn timing_falls_back_when_raw_pts_is_missing() {
+        let timing = parse_showinfo_timing("pts_time:0.5").unwrap();
+        assert_eq!(timing.timestamp_us, 500_000);
+        assert_eq!(timing.pts, 500_000);
+    }
+
+    #[test]
     fn parses_rational_values() {
         assert_eq!(parse_rational("1/1000"), Some(Rational::new(1, 1000)));
         assert_eq!(parse_rational("25/2"), Some(Rational::new(25, 2)));

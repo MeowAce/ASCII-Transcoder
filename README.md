@@ -3,28 +3,31 @@
 Real-time video-to-ASCII renderer in Rust, with a terminal frontend and a
 desktop frontend that share one frontend-independent rendering core.
 
-**Status: P1 (static ASCII engine).** A static image can be rendered to the
-terminal with True Color or 256-color output. **Video playback is not
-implemented** (P2), and `rgb-desktop` is a stub.
+**Status: P2 (video decoder, partial).** The FFmpeg subprocess decoder works and
+is VFR-verified. `rgb-render` renders **one frame** — a still image, or the
+first frame of a video. Continuous playback, pause/resume, and seeking are not
+implemented yet, and `rgb-desktop` is a stub.
 
 ## Quick start
 
 ```bash
 cargo run -p cli -- path/to/image.png
-cargo run -p cli -- image.png --width 100 --color-mode 256
+cargo run -p cli -- video.mp4 --width 100 --color-mode 256
 ```
 
 ```text
-rgb-render <IMAGE> [OPTIONS]
+rgb-render <INPUT> [OPTIONS]
 
   --width <COLS>        Output width in character cells [default: 80]
   --color-mode <MODE>   truecolor | 256              [default: truecolor]
+  --palette <CHARS>     Ordered glyphs, dark to light [default: " .:-=+*#%@"]
   --no-cell-aspect      Treat terminal cells as square (no 1:2 correction)
   --sampling <MODE>     box | point                  [default: box]
   --background          Emit a background color per cell
 ```
 
-Supported image formats: PNG, JPEG, BMP, GIF, WebP, TIFF.
+Images: PNG, JPEG, BMP, GIF, WebP, TIFF. Video: MP4, MKV, AVI, MOV, WebM
+(first frame only).
 
 ## Prerequisites
 
@@ -44,11 +47,13 @@ rustup component add rustfmt clippy
 
 ```text
 crates/renderer-core      # shared model + algorithms (no frontend deps)
-crates/video-decoder      # decoder adapters (FFmpeg subprocess in P2)
+crates/video-decoder      # FFmpeg subprocess decoder adapter
 crates/terminal-renderer  # ANSI serialization, palette, terminal lifecycle
 crates/gui-renderer       # eframe/egui shell (P4)
 apps/cli                  # bin: rgb-render
 apps/desktop              # bin: rgb-desktop
+benches                   # Criterion benchmarks
+tests/fixtures            # committed image fixtures
 ```
 
 Dependency direction is enforced by `docs/ARCHITECTURE.md` §4:
@@ -64,8 +69,13 @@ cargo fmt --check
 cargo clippy --workspace --all-targets -- -D warnings
 
 cargo test -p renderer-core <name>   # single test
-cargo run -p cli -- <file>           # terminal frontend (P2)
+cargo test -p cli --test cli         # CLI integration tests
+cargo run -p cli -- <input>          # render one frame
+cargo bench -p benches               # hot-path benchmarks
 ```
+
+`cargo test --workspace` requires `ffmpeg` and `ffprobe` on `PATH`: the decoder
+integration tests generate their own video fixtures at runtime.
 
 ## Documentation
 
