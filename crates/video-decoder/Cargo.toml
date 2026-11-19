@@ -1,0 +1,13 @@
+[package]
+name = "video-decoder"
+description = "Video input and decoder adapters. Hides whether frames come from a subprocess or native bindings."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+renderer-core.workspace = true
+
+[lints]
+workspace = true

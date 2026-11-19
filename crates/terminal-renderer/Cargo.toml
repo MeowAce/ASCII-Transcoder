@@ -1,0 +1,13 @@
+[package]
+name = "terminal-renderer"
+description = "Terminal presentation: ANSI serialization, palette mapping, input and terminal lifecycle."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+renderer-core.workspace = true
+
+[lints]
+workspace = true

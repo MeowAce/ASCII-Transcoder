@@ -1,0 +1,20 @@
+[package]
+name = "benches"
+description = "Criterion benchmarks for hot rendering paths."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+
+[dev-dependencies]
+renderer-core.workspace = true
+criterion = { version = "0.8.2", default-features = false, features = ["cargo_bench_support"] }
+
+[[bench]]
+name = "rendering"
+harness = false
+
+[lints]
+workspace = true

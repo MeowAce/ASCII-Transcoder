@@ -1,0 +1,30 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/renderer-core",
+    "crates/video-decoder",
+    "crates/terminal-renderer",
+    "crates/gui-renderer",
+    "apps/cli",
+    "apps/desktop",
+    "benches",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[workspace.dependencies]
+renderer-core = { path = "crates/renderer-core" }
+video-decoder = { path = "crates/video-decoder" }
+terminal-renderer = { path = "crates/terminal-renderer" }
+gui-renderer = { path = "crates/gui-renderer" }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+dbg_macro = "warn"
+todo = "warn"

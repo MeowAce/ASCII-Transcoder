@@ -1,0 +1,22 @@
+[package]
+name = "cli"
+description = "Terminal frontend binary (rgb-render)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "rgb-render"
+path = "src/main.rs"
+
+[dependencies]
+renderer-core.workspace = true
+terminal-renderer.workspace = true
+video-decoder.workspace = true
+
+# default-features pulls in `rayon`, which the spec forbids before profiling.
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "bmp", "gif", "webp", "tiff"] }
+
+[lints]
+workspace = true

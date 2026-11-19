@@ -1,0 +1,13 @@
+[package]
+name = "gui-renderer"
+description = "Desktop presentation: eframe/egui shell, CPU glyph renderer, later GPU adapter."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+renderer-core.workspace = true
+
+[lints]
+workspace = true
