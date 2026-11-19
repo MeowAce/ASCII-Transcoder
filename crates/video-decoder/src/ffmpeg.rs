@@ -55,7 +55,7 @@ pub struct FfmpegDecoder {
     child: Child,
     stdout: BufReader<std::process::ChildStdout>,
     /// PTS values in microseconds, in decode order, from `showinfo`.
-    timestamps: Receiver<i64>,
+    timings: Receiver<FrameTiming>,
     stderr_handle: Option<JoinHandle<()>>,
     frame_bytes: usize,
     finished: bool,
@@ -112,12 +112,12 @@ impl FfmpegDecoder {
             .take()
             .ok_or_else(|| DecoderError::BackendUnavailable("ffmpeg stderr unavailable".into()))?;
 
-        let (tx, timestamps) = channel();
+        let (tx, timings) = channel();
         let stderr_handle = std::thread::spawn(move || {
             for line in BufReader::new(stderr).lines().map_while(Result::ok) {
-                if let Some(pts_us) = parse_showinfo_pts(&line) {
+                if let Some(timing) = parse_showinfo_timing(&line) {
                     // Receiver dropped means the decoder is gone; stop parsing.
-                    if tx.send(pts_us).is_err() {
+                    if tx.send(timing).is_err() {
                         return;
                     }
                 }
@@ -128,7 +128,7 @@ impl FfmpegDecoder {
             metadata,
             child,
             stdout: BufReader::with_capacity(frame_bytes * 2, stdout),
-            timestamps,
+            timings,
             stderr_handle: Some(stderr_handle),
             frame_bytes,
             finished: false,
@@ -159,22 +159,20 @@ impl VideoDecoder for FfmpegDecoder {
             }
         }
 
-        // The PTS for this frame comes from the parallel stderr stream. If it
-        // is missing, the pairing contract is broken and we must not guess.
-        let timestamp_us = self.timestamps.recv().map_err(|_| {
+        // The timing for this frame comes from the parallel stderr stream. If
+        // it is missing, the pairing contract is broken and we must not guess.
+        let timing = self.timings.recv().map_err(|_| {
             self.finished = true;
             DecoderError::Corrupt(
                 "no timestamp for decoded frame; PTS/frame pairing is invalid".into(),
             )
         })?;
 
-        let pts = timestamp_us;
-
         Ok(Some(DecodedFrame {
             width: self.metadata.width,
             height: self.metadata.height,
-            pts,
-            timestamp_us,
+            pts: timing.pts,
+            timestamp_us: timing.timestamp_us,
             pixel_format: self.metadata.pixel_format,
             data,
         }))
@@ -232,6 +230,35 @@ fn parse_showinfo_pts(line: &str) -> Option<i64> {
         return None;
     }
     Some((value * 1_000_000.0).round() as i64)
+}
+
+/// Extracts the raw `pts:` tick value from a `showinfo` line.
+///
+/// Must not confuse `pts:` with `pts_time:`; the key is matched exactly by
+/// requiring the following character to be whitespace.
+fn parse_showinfo_raw_pts(line: &str) -> Option<i64> {
+    let idx = line.find(" pts:")?;
+    let rest = line[idx + " pts:".len()..].trim_start();
+    let end = rest
+        .find(|c: char| !(c.is_ascii_digit() || c == '-'))
+        .unwrap_or(rest.len());
+    rest[..end].parse().ok()
+}
+
+/// Timing information for one frame, as logged by `showinfo`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct FrameTiming {
+    /// Raw time-base ticks.
+    pts: i64,
+    /// Microseconds, rounded.
+    timestamp_us: i64,
+}
+
+/// Parses both the raw PTS and its microsecond form from one log line.
+fn parse_showinfo_timing(line: &str) -> Option<FrameTiming> {
+    let timestamp_us = parse_showinfo_pts(line)?;
+    let pts = parse_showinfo_raw_pts(line).unwrap_or(timestamp_us);
+    Some(FrameTiming { pts, timestamp_us })
 }
 
 /// Runs `ffprobe` to obtain dimensions, time base, and duration.

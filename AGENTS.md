@@ -2,9 +2,9 @@
 
 ## Current state (verify before assuming)
 
-Cargo workspace `rgb-ascii-renderer` (root `Cargo.toml`), edition 2024, Rust stable pinned via `rust-toolchain.toml`. Active roadmap phase: **P1 (Static ASCII Engine), implemented** — the pipeline and terminal serializer work and are tested, but P1 visual sign-off is outstanding and no video playback exists.
+Cargo workspace `rgb-ascii-renderer` (root `Cargo.toml`), edition 2024, Rust stable pinned via `rust-toolchain.toml`. Active roadmap phase: **P2 (Video + Terminal MVP), partial** — the FFmpeg decoder is implemented and VFR-verified; the playback loop, bounded queues, and terminal lifecycle are not.
 
-`rgb-render` renders **static images only**. `rgb-desktop` is a stub that exits with status 2. Do not treat a green build as evidence that video works end to end.
+`rgb-render` renders **one frame** (a still image, or the first frame of a video) and exits. `rgb-desktop` is a stub that exits with status 2. Do not treat a green build as evidence that playback works end to end.
 
 Git is initialized on branch `master` with **zero commits**. Anything requiring `HEAD`, a `main` branch, or a base ref (e.g. `detect-changes --scope compare --base-ref main`) cannot run until a first commit exists.
 
@@ -62,7 +62,16 @@ FFmpeg integration tests require a local video fixture; none is committed. Gener
 - `image` is a dependency of `apps/cli` **only**, and must keep `default-features = false`: the default feature set pulls in `rayon`, which the spec forbids before profiling. Verify with `cargo tree --workspace -e normal | grep -c rayon` → must be `0`.
 - Luminance uses fixed-point integer math (weights scaled by 10_000) on **gamma-encoded** channels. Don't switch to floats; the exact primaries are asserted in tests (red=54, green=182, blue=18).
 - Box sampling costs ~3 ms/frame on a 1080p source regardless of grid size (touches every source pixel); point sampling is ~30× cheaper. Don't "optimize" this without a benchmark run — `cargo bench -p benches` is the recorded baseline.
-- CLI binary is `rgb-render`, package `cli`. Usage: `rgb-render <IMAGE> [--width N] [--color-mode truecolor|256] [--sampling box|point] [--no-cell-aspect] [--background]`.
+- CLI binary is `rgb-render`, package `cli`. Usage: `rgb-render <INPUT> [--width N] [--color-mode truecolor|256] [--palette CHARS] [--sampling box|point] [--no-cell-aspect] [--background]`. Input may be a still image or a video (first frame only).
+
+## P2 gotchas (decoder)
+
+- **`-fps_mode passthrough` is not optional.** Without it FFmpeg silently forces CFR and drops frames; the `showinfo` PTS stream then still logs every frame while the pipe delivers fewer, silently pairing timestamps with the wrong frames. The VFR integration test in `crates/video-decoder/tests/decoder.rs` exists specifically to catch this — never delete or weaken it.
+- stderr must stay drained on its own thread. `showinfo` writes ~700 B per frame; an unread pipe fills and deadlocks the child.
+- `read_exact_or_eof` accumulates partial pipe reads. A short read is normal; a short read at EOF is corruption. Do not replace it with a single `read()` call.
+- The child process is killed and reaped in `Drop`. Any new decoder backend needs the same guarantee.
+- Decoder integration tests generate clips with `ffmpeg` at runtime and require `ffmpeg` + `ffprobe` on `PATH`. They are not hermetic; `cargo test --workspace` fails without FFmpeg installed.
+- `DecodedFrame.pts` currently stores microseconds, not raw time-base ticks. Fix or rename before the playback scheduler depends on it.
 
 ## Response format
 

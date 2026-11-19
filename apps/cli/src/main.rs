@@ -6,7 +6,7 @@
 //! Phase P1 scope: render a **static image** to the terminal. Video playback,
 //! interactive controls, and terminal lifecycle handling are P2.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use renderer_core::{
@@ -180,7 +180,7 @@ const VIDEO_EXTENSIONS: &[&str] = &["mp4", "mkv", "avi", "mov", "webm"];
 ///
 /// Video playback is P2's remaining work; this path proves the decoder,
 /// core pipeline, and terminal serializer compose correctly end to end.
-fn load_input(path: &PathBuf) -> Result<RgbImage, String> {
+fn load_input(path: &Path) -> Result<RgbImage, String> {
     let is_video = path
         .extension()
         .and_then(|ext| ext.to_str())
@@ -195,7 +195,7 @@ fn load_input(path: &PathBuf) -> Result<RgbImage, String> {
 }
 
 /// Decodes the first frame of a video file.
-fn load_first_video_frame(path: &PathBuf) -> Result<RgbImage, String> {
+fn load_first_video_frame(path: &Path) -> Result<RgbImage, String> {
     let mut decoder = FfmpegDecoder::open(&path.to_string_lossy())
         .map_err(|err| format!("cannot open video {}: {err}", path.display()))?;
 
@@ -211,7 +211,7 @@ fn load_first_video_frame(path: &PathBuf) -> Result<RgbImage, String> {
 /// Loads an image file into the core's RGB representation.
 ///
 /// This is the only place `image` is used; the core stays dependency-free.
-fn load_image(path: &PathBuf) -> Result<RgbImage, String> {
+fn load_image(path: &Path) -> Result<RgbImage, String> {
     let decoded =
         image::open(path).map_err(|err| format!("cannot open {}: {err}", path.display()))?;
     let rgba = decoded.to_rgba8();

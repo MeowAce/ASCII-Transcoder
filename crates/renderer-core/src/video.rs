@@ -62,15 +62,18 @@ pub struct VideoMetadata {
 
 /// A decoded frame, still in source pixel order.
 ///
-/// `pts` and `time_base` are retained alongside `timestamp_us` so that timing
-/// mistakes remain auditable rather than being hidden behind one derived value.
+/// `pts` and `timestamp_us` are both retained so that timing mistakes remain
+/// auditable rather than being hidden behind one derived value.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DecodedFrame {
     pub width: u32,
     pub height: u32,
-    /// Presentation timestamp in source time-base units.
+    /// Presentation timestamp in source time-base ticks.
+    ///
+    /// Convert with [`VideoMetadata::time_base`] for exact arithmetic. `-1`
+    /// means the source did not provide a timestamp.
     pub pts: i64,
-    /// Presentation timestamp converted to microseconds.
+    /// Presentation timestamp in microseconds, derived from `pts`.
     pub timestamp_us: i64,
     pub pixel_format: PixelFormat,
     /// Raw pixel bytes; length must equal `pixel_format.frame_len(w, h)`.
